@@ -7,13 +7,27 @@
 
 struct Task : Runnable
 {
+public:
+    Task(int start, int end) : start(start), end(end) {}
+    ~Task() override = default;
+
     std::any run() override
     {
-        std::cout << "Starting " << std::this_thread::get_id() << '\n';
+        int ans = 0;
+
+        for (int i = start; i < end; ++i)
+        {
+            ans += i;
+        }
+
         std::this_thread::sleep_for(std::chrono::seconds(2));
-        std::cout << "Ending " << std::this_thread::get_id() << '\n';
-        return {};
+
+        return ans;
     }
+
+private:
+    int start = 0;
+    int end = 0;
 };
 
 
@@ -23,14 +37,14 @@ int main()
     pool.start(2);
 
     std::cout << std::boolalpha;
-    std::cout << pool.submit(std::make_shared<Task>()) << '\n';
-    std::cout << pool.submit(std::make_shared<Task>()) << '\n';
-    std::cout << pool.submit(std::make_shared<Task>()) << '\n';
-    std::cout << pool.submit(std::make_shared<Task>()) << '\n';
-    std::cout << pool.submit(std::make_shared<Task>()) << '\n';
-    std::cout << pool.submit(std::make_shared<Task>()) << '\n';
-    std::cout << pool.submit(std::make_shared<Task>()) << '\n';
-    std::cout << pool.submit(std::make_shared<Task>()) << '\n';
+    std::cout << pool.submit(std::make_shared<Task>(1, 100)) << '\n';
+    std::cout << pool.submit(std::make_shared<Task>(1, 200)) << '\n';
+    std::cout << pool.submit(std::make_shared<Task>(1, 300)) << '\n';
+    std::cout << pool.submit(std::make_shared<Task>(1, 400)) << '\n';
+    std::cout << pool.submit(std::make_shared<Task>(1, 500)) << '\n';
+    std::cout << pool.submit(std::make_shared<Task>(1, 600)) << '\n';
+    std::cout << pool.submit(std::make_shared<Task>(1, 700)) << '\n';
+    std::cout << pool.submit(std::make_shared<Task>(1, 800)) << '\n';
 
 
     std::this_thread::sleep_for(std::chrono::seconds(2));
