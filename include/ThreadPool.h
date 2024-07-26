@@ -3,15 +3,12 @@
 
 #include <any>
 #include <condition_variable>
-#include <memory>
-#include <mutex>
 #include <queue>
 #include <vector>
 
 
-class UnCopyable
+struct UnCopyable
 {
-public:
     UnCopyable() = default;
     ~UnCopyable() = default;
     UnCopyable(const UnCopyable &) = delete;
@@ -41,7 +38,6 @@ public:
     virtual ~Runnable() = 0;
 
     virtual std::any run() = 0;
-
     void execute();
 };
 
@@ -54,17 +50,19 @@ public:
 
     void start(int numWorkers = 4);
 
-    bool submit(const std::shared_ptr<Runnable>&);
+    bool submit(const std::shared_ptr<Runnable> & runnable);
 
 private:
-    void threadFunc();
+    void workerFunc();
 
-    std::vector<std::shared_ptr<Worker>> workers;
+    std::vector<std::unique_ptr<Worker>> workers;
 
     std::mutex taskQueueMutex;
     std::condition_variable taskQueueNotFull;
     std::condition_variable taskQueueNotEmpty;
     std::queue<std::shared_ptr<Runnable>> taskQueue;
+
+    bool shouldStop = false;
 };
 
 
