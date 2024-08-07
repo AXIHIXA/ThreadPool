@@ -4,65 +4,82 @@
 #include <any>
 #include <condition_variable>
 #include <queue>
-#include <vector>
+#include <unordered_map>
 
 
-struct Uncopyable
-{
-    Uncopyable() = default;
-    ~Uncopyable() = default;
-    Uncopyable(const Uncopyable &) = delete;
-    Uncopyable & operator=(const Uncopyable &) = delete;
-    Uncopyable(Uncopyable &&) = default;
-    Uncopyable & operator=(Uncopyable &&) = default;
-};
-
-
-class Worker : Uncopyable
+class Worker
 {
 public:
-    explicit Worker(std::function<void ()> func);
+    Worker(int handle, std::function<void ()> func);
     ~Worker() = default;
 
-    void listen() const;
+    Worker(const Worker &) = delete;
+    Worker & operator=(const Worker &) = delete;
+    Worker(Worker &&) = default;
+    Worker & operator=(Worker &&) = default;
+
+    void work() const;
+
+    int getHandle() const;
 
 private:
+    int handle = 0;
     std::function<void ()> func;
 };
 
 
-class Runnable
+class Task
 {
 public:
-    Runnable() = default;
-    virtual ~Runnable() = 0;
+    Task() = default;
+    virtual ~Task() = 0;
 
     virtual std::any run() = 0;
-    void execute();
+    void exec();
 };
 
 
-class ThreadPool : public Uncopyable
+class ThreadPool
 {
 public:
-    ThreadPool() = default;
+    enum Mode
+    {
+        kFixed = 1,
+        kCached = 2,
+    };
+
+    ThreadPool();
+    ThreadPool(Mode mode, int minNumWorkers, int maxNumWorkers);
+
     ~ThreadPool() = default;
 
-    void start(int numWorkers = 4);
+    ThreadPool(const ThreadPool &) = delete;
+    ThreadPool & operator=(const ThreadPool &) = delete;
 
-    bool submit(const std::shared_ptr<Runnable> & task);
+    ThreadPool(ThreadPool &&) = delete;
+    ThreadPool & operator=(ThreadPool &&) = delete;
+
+    void start();
+
+    bool submit(const std::shared_ptr<Task> & task);
 
 private:
     void workerFunc();
 
-    std::vector<std::unique_ptr<Worker>> workers;
+    void initWorkers();
 
-    std::mutex taskQueueMutex;
-    std::condition_variable taskQueueNotFull;
-    std::condition_variable taskQueueNotEmpty;
-    std::queue<std::shared_ptr<Runnable>> taskQueue;
+    std::unordered_map<int, std::unique_ptr<Worker>> workers;
 
-    bool shouldStop = false;
+    std::mutex mut;
+    std::condition_variable notFull;
+    std::condition_variable notEmpty;
+    std::queue<std::shared_ptr<Task>> taskQueue;
+
+    bool running = false;
+
+    Mode mode = kFixed;
+    int minNumWorkers = 4;
+    int maxNumWorkers = 4;
 };
 
 

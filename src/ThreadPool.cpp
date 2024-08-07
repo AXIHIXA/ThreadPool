@@ -1,68 +1,84 @@
+#include <cassert>
 #include <future>
 #include <iostream>
 
 #include "ThreadPool.h"
 
 
-Worker::Worker(std::function<void ()> func) : func(std::move(func))
+Worker::Worker(int handle, std::function<void ()> func) :
+    handle(handle),
+    func(std::move(func))
 {
 
 }
 
 
-void Worker::listen() const
+void Worker::work() const
 {
     std::thread t(func);
     t.detach();
 }
 
 
-Runnable::~Runnable() = default;
+int Worker::getHandle() const
+{
+    return handle;
+}
 
 
-void Runnable::execute()
+Task::~Task() = default;
+
+
+void Task::exec()
 {
     run();
 }
 
 
-void ThreadPool::start(int numWorkers)
+ThreadPool::ThreadPool()
 {
-    workers.resize(numWorkers);
-    shouldStop = false;
-
-    for (auto & worker : workers)
-    {
-        worker = std::make_unique<Worker>([this] { workerFunc(); });
-    }
-
-    for (const auto & worker : workers)
-    {
-        worker->listen();
-    }
+    initWorkers();
 }
 
 
-bool ThreadPool::submit(const std::shared_ptr<Runnable> & task)
+ThreadPool::ThreadPool(Mode mode, int minNumWorkers, int maxNumWorkers) :
+    mode(mode),
+    minNumWorkers(minNumWorkers),
+    maxNumWorkers(maxNumWorkers)
 {
-    std::unique_lock lock(taskQueueMutex);
+    assert(mode == kFixed ? minNumWorkers == maxNumWorkers : minNumWorkers <= maxNumWorkers);
+    initWorkers();
+}
 
-    bool success = taskQueueNotFull.wait_for(
-            lock,
-            std::chrono::seconds(1),
-            [this] { return taskQueue.size() < workers.size(); });
+
+void ThreadPool::start()
+{
+    running = true;
+}
+
+
+bool ThreadPool::submit(const std::shared_ptr<Task> & task)
+{
+    std::unique_lock lock(mut);
+
+    bool success = notFull.wait_for(
+        lock,
+        std::chrono::seconds(1),
+        [this] { return taskQueue.size() < workers.size(); }
+    );
 
     if (!success)
     {
+        // Timeout.
         return false;
     }
 
     taskQueue.push(task);
-    taskQueueNotEmpty.notify_all();
+    notEmpty.notify_all();
 
     if (taskQueue.size() < workers.size())
     {
-        taskQueueNotFull.notify_all();
+        notFull.notify_all();
     }
 
     lock.unlock();
@@ -78,26 +94,26 @@ void ThreadPool::workerFunc()
     // std::cout << std::this_thread::get_id() << "begins\n";
     // std::this_thread::sleep_for(std::chrono::seconds(1));
 
-    while (!shouldStop)
+    while (running)
     {
-        std::shared_ptr<Runnable> task = nullptr;
+        std::shared_ptr<Task> task = nullptr;
         {
-            std::unique_lock lock(taskQueueMutex);
-            taskQueueNotEmpty.wait(lock, [this] { return !taskQueue.empty(); });
+            std::unique_lock lock(mut);
+            notEmpty.wait(lock, [this] { return !taskQueue.empty(); });
             task = taskQueue.front();
             taskQueue.pop();
 
             if (!taskQueue.empty())
             {
-                taskQueueNotEmpty.notify_all();
+                notEmpty.notify_all();
             }
 
-            taskQueueNotFull.notify_all();
+            notFull.notify_all();
         }
 
         if (task)
         {
-            task->execute();
+            task->exec();
         }
     }
 
@@ -105,3 +121,15 @@ void ThreadPool::workerFunc()
 }
 
 
+void ThreadPool::initWorkers()
+{
+    for (int i = 1; i <= minNumWorkers; ++i)
+    {
+        workers.emplace(i, std::make_unique<Worker>(i, [this] { workerFunc(); }));
+    }
+
+    for (auto & [handle, pw] : workers)
+    {
+        pw->work();
+    }
+}
