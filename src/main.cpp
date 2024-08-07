@@ -16,14 +16,19 @@ public:
     {
         int ans = 0;
 
-        for (int i = start; i < end; ++i)
+        for (int i = start; i <= end; ++i)
         {
             ans += i;
         }
 
-        std::this_thread::sleep_for(std::chrono::seconds(2));
+        std::this_thread::sleep_for(std::chrono::seconds(1));
 
         return ans;
+    }
+
+    std::string str() override
+    {
+        return "Sum(" + std::to_string(start) + ", " + std::to_string(end) + ")";
     }
 
 private:
@@ -32,21 +37,41 @@ private:
 };
 
 
+std::unique_ptr<Result> calculateSum(ThreadPool & pool, int start, int end)
+{
+    return pool.submit(std::make_shared<Sum>(start, end));
+}
+
+
+int getSum(Result * res)
+{
+    if (!res)
+    {
+        return -1;
+    }
+
+    return std::any_cast<int>(res->get());
+}
+
+
 int main()
 {
     ThreadPool pool;
     pool.start();
 
-    std::cout << std::boolalpha;
-    std::cout << pool.submit(std::make_shared<Sum>(1, 100)) << '\n';
-    std::cout << pool.submit(std::make_shared<Sum>(1, 200)) << '\n';
-    std::cout << pool.submit(std::make_shared<Sum>(1, 300)) << '\n';
-    std::cout << pool.submit(std::make_shared<Sum>(1, 400)) << '\n';
-    std::cout << pool.submit(std::make_shared<Sum>(1, 500)) << '\n';
-    std::cout << pool.submit(std::make_shared<Sum>(1, 600)) << '\n';
-    std::cout << pool.submit(std::make_shared<Sum>(1, 700)) << '\n';
-    std::cout << pool.submit(std::make_shared<Sum>(1, 800)) << '\n';
+    std::unique_ptr<Result> r1 = calculateSum(pool, 1, 100);
+    std::unique_ptr<Result> r2 = calculateSum(pool, 1, 200);
+    std::unique_ptr<Result> r3 = calculateSum(pool, 1, 300);
+    std::unique_ptr<Result> r4 = calculateSum(pool, 1, 400);
+    std::unique_ptr<Result> r5 = calculateSum(pool, 1, 500);
+    std::unique_ptr<Result> r6 = calculateSum(pool, 1, 600);
 
-    std::this_thread::sleep_for(std::chrono::seconds(2));
+    std::cout << getSum(r1.get()) << '\n';
+    std::cout << getSum(r2.get()) << '\n';
+    std::cout << getSum(r3.get()) << '\n';
+    std::cout << getSum(r4.get()) << '\n';
+    std::cout << getSum(r5.get()) << '\n';
+    std::cout << getSum(r6.get()) << '\n';
+
     return EXIT_SUCCESS;
 }

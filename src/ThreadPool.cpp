@@ -5,7 +5,7 @@
 #include "ThreadPool.h"
 
 
-Worker::Worker(int handle, std::function<void ()> func) :
+Worker::Worker(int handle, std::function<void (int)> func) :
     handle(handle),
     func(std::move(func))
 {
@@ -15,7 +15,7 @@ Worker::Worker(int handle, std::function<void ()> func) :
 
 void Worker::work() const
 {
-    std::thread t(func);
+    std::thread t(func, handle);
     t.detach();
 }
 
@@ -29,9 +29,56 @@ int Worker::getHandle() const
 Task::~Task() = default;
 
 
+std::string Task::str()
+{
+    return "Task";
+}
+
+
 void Task::exec()
 {
-    run();
+    if (pRes)
+    {
+        pRes->setVal(run());
+    }
+}
+
+
+void Task::setResult(Result * res)
+{
+    pRes = res;
+}
+
+
+Result::Result(std::shared_ptr<Task> task) : pTask(std::move(task))
+{
+    pTask->setResult(this);
+}
+
+
+void Result::setVal(const std::any & val)
+{
+    std::lock_guard g(mut);
+    ready = true;
+    this->val = val;
+    cv.notify_all();
+}
+
+
+void Result::setVal(std::any && val)
+{
+    std::lock_guard g(mut);
+    ready = true;
+    this->val = std::move(val);
+    cv.notify_all();
+}
+
+
+std::any Result::get()
+{
+    std::unique_lock lock(mut);
+    cv.wait(lock, [this] -> bool { return ready; });
+    return std::move(val);
 }
 
 
@@ -54,10 +101,15 @@ ThreadPool::ThreadPool(Mode mode, int minNumWorkers, int maxNumWorkers) :
 void ThreadPool::start()
 {
     running = true;
+
+    for (auto & [handle, pw] : workers)
+    {
+        pw->work();
+    }
 }
 
 
-bool ThreadPool::submit(const std::shared_ptr<Task> & task)
+std::unique_ptr<Result> ThreadPool::submit(const std::shared_ptr<Task> & task)
 {
     std::unique_lock lock(mut);
 
@@ -70,33 +122,67 @@ bool ThreadPool::submit(const std::shared_ptr<Task> & task)
     if (!success)
     {
         // Timeout.
-        return false;
+        return nullptr;
     }
 
     taskQueue.push(task);
+
     notEmpty.notify_all();
 
-    if (taskQueue.size() < workers.size())
+    if (taskQueue.size() < maxNumWorkers)
     {
         notFull.notify_all();
     }
 
-    lock.unlock();
+    return std::make_unique<Result>(task);
+}
 
-    return true;
+
+void ThreadPool::initWorkers()
+{
+    // Workers.
+    for (int i = 1; i <= minNumWorkers; ++i)
+    {
+        workers.emplace(
+            i,
+            std::make_unique<Worker>(i, [this](int handle) { workerFunc(handle); })
+        );
+    }
+
+    // Fall-back task queue observer to avoid deadlocks.
+    // When cv.notify is called, workers might not be idle waiting yet;
+    // when they finally wait on the a cv, cv.notify is already called.
+    // Without this fall-back observer, these workers will never be notified!
+    fallbackObserver = std::make_unique<Worker>(0, [this](int handle)
+    {
+        std::lock_guard g(mut);
+
+        if (!taskQueue.empty())
+        {
+            notEmpty.notify_all();
+        }
+
+        if (taskQueue.size() < maxNumWorkers)
+        {
+            notFull.notify_all();
+        }
+    });
 }
 
 
 // Each worker executes this function in a detached thread.
 // Each worker fetches a task from the task queue and then run it.
-void ThreadPool::workerFunc()
+void ThreadPool::workerFunc(int handle)
 {
-    // std::cout << std::this_thread::get_id() << "begins\n";
-    // std::this_thread::sleep_for(std::chrono::seconds(1));
+    // std::string ss = "Worker #" + std::to_string(handle) + " begins\n";
+    // std::cout << ss;
+    // std::flush(std::cout);
+    // std::this_thread::sleep_for(std::chrono::milliseconds(100));
 
     while (running)
     {
         std::shared_ptr<Task> task = nullptr;
+
         {
             std::unique_lock lock(mut);
             notEmpty.wait(lock, [this] { return !taskQueue.empty(); });
@@ -118,18 +204,4 @@ void ThreadPool::workerFunc()
     }
 
     // std::cout << std::this_thread::get_id() << "stops\n";
-}
-
-
-void ThreadPool::initWorkers()
-{
-    for (int i = 1; i <= minNumWorkers; ++i)
-    {
-        workers.emplace(i, std::make_unique<Worker>(i, [this] { workerFunc(); }));
-    }
-
-    for (auto & [handle, pw] : workers)
-    {
-        pw->work();
-    }
 }

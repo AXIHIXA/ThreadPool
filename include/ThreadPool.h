@@ -10,7 +10,7 @@
 class Worker
 {
 public:
-    Worker(int handle, std::function<void ()> func);
+    Worker(int handle, std::function<void (int)> func);
     ~Worker() = default;
 
     Worker(const Worker &) = delete;
@@ -20,12 +20,16 @@ public:
 
     void work() const;
 
-    int getHandle() const;
+    [[nodiscard]] int getHandle() const;
 
 private:
     int handle = 0;
-    std::function<void ()> func;
+    int threadId = 0;
+    std::function<void (int)> func;
 };
+
+
+class Result;
 
 
 class Task
@@ -35,7 +39,42 @@ public:
     virtual ~Task() = 0;
 
     virtual std::any run() = 0;
+    virtual std::string str();
+
     void exec();
+    void setResult(Result * res);
+
+private:
+    Result * pRes = nullptr;
+};
+
+
+class Result
+{
+public:
+    Result() = default;
+    explicit Result(std::shared_ptr<Task> task);
+    ~Result() = default;
+
+    Result(const Result &) = delete;
+    Result & operator=(const Result &) = delete;
+    Result(Result &&) = delete;
+    Result & operator=(Result &&) = delete;
+
+    void setVal(const std::any & val);
+    void setVal(std::any && val);
+
+    std::any get();
+
+private:
+    bool ready = false;
+    std::mutex mut;
+    std::condition_variable cv;
+    std::any val;
+
+    // Save the reference count for the task in this result,
+    // otherwise it will be destructed once popped out of the task queue!
+    std::shared_ptr<Task> pTask = nullptr;
 };
 
 
@@ -61,25 +100,32 @@ public:
 
     void start();
 
-    bool submit(const std::shared_ptr<Task> & task);
+    std::unique_ptr<Result> submit(const std::shared_ptr<Task> & task);
 
 private:
-    void workerFunc();
+    static constexpr int kDefaultNumWorkers = 4;
 
     void initWorkers();
 
+    void workerFunc(int handle);
+
+    // Worker threads.
     std::unordered_map<int, std::unique_ptr<Worker>> workers;
+
+    // Fall-back observer to avoid deadlocks.
+    // Observes taskQueue in a separate thread.
+    std::unique_ptr<Worker> fallbackObserver;
 
     std::mutex mut;
     std::condition_variable notFull;
     std::condition_variable notEmpty;
     std::queue<std::shared_ptr<Task>> taskQueue;
 
-    bool running = false;
+    std::atomic_bool running = false;
 
     Mode mode = kFixed;
-    int minNumWorkers = 4;
-    int maxNumWorkers = 4;
+    int minNumWorkers = kDefaultNumWorkers;
+    int maxNumWorkers = kDefaultNumWorkers;
 };
 
 
