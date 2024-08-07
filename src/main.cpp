@@ -21,7 +21,7 @@ public:
             ans += i;
         }
 
-        std::this_thread::sleep_for(std::chrono::seconds(1));
+        std::this_thread::sleep_for(std::chrono::seconds(3));
 
         return ans;
     }
@@ -65,6 +65,8 @@ int main()
     std::unique_ptr<Result> r4 = calculateSum(pool, 1, 400);
     std::unique_ptr<Result> r5 = calculateSum(pool, 1, 500);
     std::unique_ptr<Result> r6 = calculateSum(pool, 1, 600);
+    std::unique_ptr<Result> r7 = calculateSum(pool, 1, 700);
+    std::unique_ptr<Result> r8 = calculateSum(pool, 1, 800);
 
     std::cout << getSum(r1.get()) << '\n';
     std::cout << getSum(r2.get()) << '\n';
@@ -72,6 +74,8 @@ int main()
     std::cout << getSum(r4.get()) << '\n';
     std::cout << getSum(r5.get()) << '\n';
     std::cout << getSum(r6.get()) << '\n';
+    std::cout << getSum(r7.get()) << '\n';
+    std::cout << getSum(r8.get()) << '\n';
 
     return EXIT_SUCCESS;
 }

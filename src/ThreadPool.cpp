@@ -149,24 +149,24 @@ void ThreadPool::initWorkers()
         );
     }
 
-    // Fall-back task queue observer to avoid deadlocks.
-    // When cv.notify is called, workers might not be idle waiting yet;
-    // when they finally wait on the a cv, cv.notify is already called.
-    // Without this fall-back observer, these workers will never be notified!
-    fallbackObserver = std::make_unique<Worker>(0, [this](int handle)
-    {
-        std::lock_guard g(mut);
-
-        if (!taskQueue.empty())
-        {
-            notEmpty.notify_all();
-        }
-
-        if (taskQueue.size() < maxNumWorkers)
-        {
-            notFull.notify_all();
-        }
-    });
+    // // Fall-back task queue observer to avoid deadlocks.
+    // // When cv.notify is called, workers might not be idle waiting yet;
+    // // when they finally wait on the a cv, cv.notify is already called.
+    // // Without this fall-back observer, these workers will never be notified!
+    // fallbackObserver = std::make_unique<Worker>(0, [this](int handle)
+    // {
+    //     std::lock_guard g(mut);
+    //
+    //     if (!taskQueue.empty())
+    //     {
+    //         notEmpty.notify_all();
+    //     }
+    //
+    //     if (taskQueue.size() < maxNumWorkers)
+    //     {
+    //         notFull.notify_all();
+    //     }
+    // });
 }
 
 
