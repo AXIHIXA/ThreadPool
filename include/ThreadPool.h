@@ -112,9 +112,9 @@ private:
     // Worker threads.
     std::unordered_map<int, std::unique_ptr<Worker>> workers;
 
-    // Fall-back observer to avoid deadlocks.
-    // Observes taskQueue in a separate thread.
-    std::unique_ptr<Worker> fallbackObserver;
+    // // Fall-back observer to avoid deadlocks.
+    // // Observes taskQueue in a separate thread.
+    // std::unique_ptr<Worker> fallbackObserver;
 
     std::mutex mut;
     std::condition_variable notFull;
