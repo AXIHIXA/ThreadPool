@@ -59,23 +59,18 @@ int main()
     ThreadPool pool;
     pool.start();
 
-    std::unique_ptr<Result> r1 = calculateSum(pool, 1, 100);
-    std::unique_ptr<Result> r2 = calculateSum(pool, 1, 200);
-    std::unique_ptr<Result> r3 = calculateSum(pool, 1, 300);
-    std::unique_ptr<Result> r4 = calculateSum(pool, 1, 400);
-    std::unique_ptr<Result> r5 = calculateSum(pool, 1, 500);
-    std::unique_ptr<Result> r6 = calculateSum(pool, 1, 600);
-    std::unique_ptr<Result> r7 = calculateSum(pool, 1, 700);
-    std::unique_ptr<Result> r8 = calculateSum(pool, 1, 800);
+    std::vector<std::unique_ptr<Result>> results;
+    results.reserve(12);
 
-    std::cout << getSum(r1.get()) << '\n';
-    std::cout << getSum(r2.get()) << '\n';
-    std::cout << getSum(r3.get()) << '\n';
-    std::cout << getSum(r4.get()) << '\n';
-    std::cout << getSum(r5.get()) << '\n';
-    std::cout << getSum(r6.get()) << '\n';
-    std::cout << getSum(r7.get()) << '\n';
-    std::cout << getSum(r8.get()) << '\n';
+    for (int i = 1; i <= 12; ++i)
+    {
+        results.emplace_back(calculateSum(pool, 1, i * 10));
+    }
+
+    for (auto & r : results)
+    {
+        std::cout << getSum(r.get()) << '\n';
+    }
 
     return EXIT_SUCCESS;
 }
