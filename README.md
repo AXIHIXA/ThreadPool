@@ -3,4 +3,4 @@
 - Sample thread pool with C++17 semantics.
 - Prototype implementation of `std::any` and `std::future` to catch return values of async tasks.
 - Shows sample usage of STL containers and concurrency support primitives in this project. 
-- A self-contained minimum example is available in `var/least.cpp`. 
+- A self-contained minimum example is available in `minimal.cpp`. 
