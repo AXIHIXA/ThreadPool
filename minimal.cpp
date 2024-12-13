@@ -50,8 +50,8 @@ public:
     ThreadPool(const ThreadPool &) = delete;
     ThreadPool(ThreadPool &&) = delete;
 
-    ThreadPool & operator()(const ThreadPool &) = delete;
-    ThreadPool & operator()(ThreadPool &&) = delete;
+    ThreadPool & operator=(const ThreadPool &) = delete;
+    ThreadPool & operator=(ThreadPool &&) = delete;
 
     template <typename F, typename ... Args>
     auto submit(F && f, Args && ... args) -> std::future<std::invoke_result_t<F, Args ...>>
