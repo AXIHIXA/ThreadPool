@@ -31,9 +31,10 @@ public:
             shouldStop = true;
         }
 
-        // Workers wake up when task queue not empty, or thread pool should stop.
+        // 工作线程在有任务要做，或线程池被关闭时都要被唤醒。
         notEmpty.notify_all();
-        
+
+        // 建议工作线程在析构函数中 join，而不是在构造函数中 detach。
         // 特性         析构中 join                           构造中 detach
         // 资源安全性    高，确保所有线程资源正确回收             低，依赖操作系统的自动回收
         // 性能         可能阻塞，适合少量长生命周期线程          非阻塞，适合大量短生命周期线程
@@ -49,15 +50,23 @@ public:
     ThreadPool(const ThreadPool &) = delete;
     ThreadPool(ThreadPool &&) = delete;
 
+    ThreadPool & operator()(const ThreadPool &) = delete;
+    ThreadPool & operator()(ThreadPool &&) = delete;
+
     template <typename F, typename ... Args>
     auto submit(F && f, Args && ... args) -> std::future<std::invoke_result_t<F, Args ...>>
     {
         using R = std::invoke_result_t<F, Args...>;
 
+        // 使用 shared_ptr 提供更灵活的任务生命周期管理，
+        // 例如延迟执行，移交任务等等，
+        // 这个简易线程池的例子看不出来 shared_ptr 的好处。
         auto pTask = std::make_shared<std::packaged_task<R ()>>(
                 std::bind(std::forward<F>(f), std::forward<Args>(args)...)
         );
 
+        // 建议创建 packed_task 之后当场 get_future。
+        // 等到 return 时再来也可以，但这样必须保证中间的代码不会调用 get_future，这增加了维护难度。
         std::future<R> fut = pTask->get_future();
 
         {
