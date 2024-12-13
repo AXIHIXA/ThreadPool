@@ -77,6 +77,7 @@ public:
                 throw std::runtime_error("task submitted to a stopped ThreadPool");
             }
 
+            // 用 lambda 额外捕获 pTask，作为 std::function<void ()> 入队，类型消除
             tasks.emplace([pTask]() { (*pTask)(); });
         }
 
@@ -86,6 +87,7 @@ public:
     }
 
 private:
+    // 类型消除
     using Task = std::function<void ()>;
 
     void workerFunc()
@@ -129,13 +131,13 @@ int main(int argc, char * argv[])
 {
     std::future<int> f1, f2, f3, f4;
 
+    auto add = [](int a, int b)
+    {
+        return a + b;
+    };
+
     {
         ThreadPool pool(4);
-
-        auto add = [](int a, int b)
-        {
-            return a + b;
-        };
 
         f1 = pool.submit(add, 0, 1);
         f2 = pool.submit(add, 0, 2);
