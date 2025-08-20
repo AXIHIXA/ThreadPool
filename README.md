@@ -5,19 +5,11 @@
 - Shows sample usage of STL containers and concurrency support primitives in this project. 
 - A self-contained minimum example is available in `minimal.cpp`. 
 
-## PARADIGM: Notify All or Notify One?
-
-- When waking some other thread(s),
-  - **the default choice should be broadcast/notify_all** (broadcast is the POSIX term, which is equivalent to its C++ counterpart).
-    - Notify all as long as there's multiple threads waiting! Even if you know only one thread would gain enough resourses to run!
-  - signal/notify is an optimized special case used for when there's only 1 other thread is waiting.
-- Reference: [StackOverflow, DannyNiu's Answer](https://stackoverflow.com/questions/52503361/unlock-the-mutex-after-condition-variablenotify-all-or-before)
-
 
 ## PARADIGM: Notify, Then Unlock vs Unlock, Then Notify
 
 - Reference: [StackOverflow](https://stackoverflow.com/questions/52503361/unlock-the-mutex-after-condition-variablenotify-all-or-before)
-  - **Common practice: Unblock first, then notify_all**.
+  - **Common practice: Unblock first, then notify**.
     - [https://en.cppreference.com/w/cpp/thread/condition_variable/notify_all](https://en.cppreference.com/w/cpp/thread/condition_variable/notify_all)
     - [Back to Basics: Concurrency - Arthur O'Dwyer - CppCon 2020 @36:18](https://www.youtube.com/watch?v=F6Ipn7gCOsY&t=5s)
   - Performance-wise, unlock first is better; it avoids consumer thread to be waked up and immediately blocked.
