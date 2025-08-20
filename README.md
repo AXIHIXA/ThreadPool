@@ -5,14 +5,21 @@
 - Shows sample usage of STL containers and concurrency support primitives in this project. 
 - A self-contained minimum example is available in `minimal.cpp`. 
 
-## PARADIGM: Notify, Then Unlock
+## PARADIGM: Notify All or Notify One?
 
-- **Correctness**: Avoids potential deadlocks caused by "lost wakeups".
-  - The "unlock, then notify" paradigm may cause "lost wakeups" and deadlocks!
-  - If the consumer thread is scheduled before it waits on the condition variable (i.e., when it's evaluating the predicate),
-  - then, when the producer thread notifies, no thread is currently waiting on the condition variable!
-    - This notification will be lost.
-    - The producer will wait forever (deadlock)!
-- **Efficiency**: Avoids unnecessary context switches and resource races, enabling a seamless thread concatenation.
-  - If you signal before you unlock, a good implementation will know that your signal **cannot possibly render any thread ready-to-run** because the mutex is held by the calling thread and any thread affects by the condition variable necessarily cannot make forward progress without the mutex. This permits a significant optimization (often called "wait morphing") that is not possible if you unlock first.
+- When waking some other thread(s),
+  - **the default choice should be broadcast/notify_all** (broadcast is the POSIX term, which is equivalent to its C++ counterpart).
+    - Notify all as long as there's multiple threads waiting! Even if you know only one thread would gain enough resourses to run!
+  - signal/notify is an optimized special case used for when there's only 1 other thread is waiting.
+- Reference: [StackOverflow, DannyNiu's Answer](https://stackoverflow.com/questions/52503361/unlock-the-mutex-after-condition-variablenotify-all-or-before)
+
+
+## PARADIGM: Notify, Then Unlock vs Unlock, Then Notify
+
 - Reference: [StackOverflow](https://stackoverflow.com/questions/52503361/unlock-the-mutex-after-condition-variablenotify-all-or-before)
+  - Common practice: Notify, then unlock.
+    - [https://en.cppreference.com/w/cpp/thread/condition_variable/notify_all](https://en.cppreference.com/w/cpp/thread/condition_variable/notify_all)
+    - [Back to Basics: Concurrency - Arthur O'Dwyer - CppCon 2020 @36:18](https://www.youtube.com/watch?v=F6Ipn7gCOsY&t=5s)
+  - Performance-wise, unlock first is better; it avoids consumer thread to be waked up and immediately blocked.
+  - Correctness-wise, unlock first requires consumer thread to check for the condition before sleeping. Otherwise, there will be *sleep paralysis* (cv counterpart fot for mutex deadlocks).
+    - only when all 3 points are violated ( 1. condvar associated with several separate conditions and/or didn't check it before waiting again; 2. signal/notify only one thread when there're more than one other threads using the condvar; 3. unlock before notify creating a window for race condition ), the "sleep paralysis" would occur
