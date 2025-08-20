@@ -17,7 +17,7 @@
 ## PARADIGM: Notify, Then Unlock vs Unlock, Then Notify
 
 - Reference: [StackOverflow](https://stackoverflow.com/questions/52503361/unlock-the-mutex-after-condition-variablenotify-all-or-before)
-  - Common practice: Notify, then unlock.
+  - **Common practice: Unblock first, then notify_all**.
     - [https://en.cppreference.com/w/cpp/thread/condition_variable/notify_all](https://en.cppreference.com/w/cpp/thread/condition_variable/notify_all)
     - [Back to Basics: Concurrency - Arthur O'Dwyer - CppCon 2020 @36:18](https://www.youtube.com/watch?v=F6Ipn7gCOsY&t=5s)
   - Performance-wise, unlock first is better; it avoids consumer thread to be waked up and immediately blocked.
